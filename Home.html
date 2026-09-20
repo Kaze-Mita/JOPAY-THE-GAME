@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JOPAY: The Game</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --ps1-green: #2c4a38;
+            --ps1-red: #8b0000;
+            --ps1-yellow: #d8c27a;
+            --ps1-bg: #070908;
+        }
+
+        body {
+            background-color: var(--ps1-bg);
+            color: #dcdcdc;
+            font-family: 'VT323', monospace;
+            overflow-x: hidden;
+            image-rendering: pixelated;
+        }
+
+        .font-title {
+            font-family: 'VT323', monospace;
+            letter-spacing: 4px;
+            text-shadow: 3px 3px 0px #8b0000, -2px -2px 0px #000;
+        }
+
+        .font-subtitle {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.4) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.03),
+                rgba(0, 255, 0, 0.01),
+                rgba(0, 0, 255, 0.03)
+            );
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.95;
+        }
+
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: 0 0 150px rgba(0,0,0,0.95) inset;
+            pointer-events: none;
+            z-index: 45;
+        }
+
+        @keyframes textFlicker {
+            0% { opacity: 0.95; text-shadow: 3px 3px 0px #8b0000; }
+            5% { opacity: 0.4; text-shadow: none; }
+            10% { opacity: 0.9; text-shadow: 3px 3px 0px #8b0000; }
+            15% { opacity: 1; text-shadow: -3px -1px 0px #2c4a38; }
+            25% { opacity: 0.3; }
+            30% { opacity: 1; text-shadow: 3px 3px 0px #8b0000; }
+            70% { opacity: 0.85; }
+            80% { opacity: 0.2; }
+            90% { opacity: 1; text-shadow: 3px 3px 0px #8b0000; }
+            100% { opacity: 0.95; }
+        }
+
+        .flicker {
+            animation: textFlicker 3.5s infinite;
+        }
+
+        .retro-btn {
+            background-color: #1a261f;
+            border: 3px solid #3e5a47;
+            color: var(--ps1-yellow);
+            box-shadow: 4px 4px 0px #000;
+            transition: all 0.1s ease-in-out;
+            position: relative;
+        }
+
+        .retro-btn:hover {
+            background-color: #8b0000;
+            color: #ffffff;
+            border-color: #ff4d4d;
+            box-shadow: 6px 6px 0px #000;
+            transform: translate(-2px, -2px);
+        }
+
+        .retro-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px #000;
+        }
+
+        #horrorCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.45;
+        }
+        .content-layer {
+            position: relative;
+            z-index: 10;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #070908;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2c4a38;
+            border: 1px solid #8b0000;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between select-none">
+
+    <div id="crtOverlay" class="crt-overlay"></div>
+    <div class="vignette"></div>
+
+    <canvas id="horrorCanvas"></canvas>
+
+    <div class="content-layer min-h-screen flex flex-col justify-between p-4 md:p-8">
+
+        <header class="flex justify-between items-center max-w-6xl w-full mx-auto py-2 border-b-2 border-emerald-900/60">
+            <div class="flex items-center space-x-2">
+                <span class="inline-block w-3 h-3 bg-red-600 rounded-full animate-ping"></span>
+                <span class="text-xl text-emerald-500 tracking-widest font-subtitle">[REC] 00:19:98</span>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <button id="crtToggleBtn" class="px-3 py-1 text-sm bg-stone-900 border border-stone-700 text-stone-300 hover:text-emerald-400 hover:border-emerald-600 transition">
+                    CRT FILTER: <span id="crtStatus" class="text-emerald-400">ON</span>
+                </button>
+
+                <button id="audioToggleBtn" class="px-3 py-1 text-sm bg-stone-900 border border-stone-700 text-stone-300 hover:text-red-400 hover:border-red-600 transition flex items-center gap-2">
+                    <svg id="audioIcon" class="w-4 h-4 fill-current text-red-500" viewBox="0 0 24 24">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                    AMBIENCE: <span id="audioStatus" class="text-red-500">OFF</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="max-w-4xl w-full mx-auto my-auto text-center py-12 flex flex-col items-center">
+            
+            <div class="relative mb-6">
+                <h1 class="text-6xl sm:text-8xl md:text-9xl font-bold tracking-widest text-stone-100 font-title flicker">
+                    JOPAY
+                </h1>
+                <p class="text-2xl sm:text-4xl text-amber-200/90 font-subtitle tracking-widest uppercase -mt-2 sm:-mt-4 italic">
+                    the game
+                </p>
+            </div>
+
+            <p class="text-xl md:text-2xl text-emerald-400/80 max-w-xl font-subtitle mb-8 px-4 leading-relaxed">
+                "JOPAY ASAN KA?" <br>
+                <span class="text-stone-400 text-base md:text-lg italic">A PS1 retro survival horror decision story.</span>
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-4 items-center justify-center w-full max-w-md">
+                <button id="playGameBtn" class="retro-btn w-full py-4 text-2xl font-bold uppercase tracking-wider flex items-center justify-center gap-3">
+                    <span>PLAY GAME</span>
+                    <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                </button>
+
+                <a href="#about" class="w-full sm:w-auto px-6 py-4 bg-stone-900/80 border-2 border-stone-700 text-stone-300 hover:text-white hover:border-stone-500 text-xl text-center font-subtitle transition">
+                    ABOUT
+                </a>
+            </div>
+
+            <div class="mt-8 text-xs text-red-600/70 font-subtitle flex items-center gap-2">
+                <span>⚠️ WARNING: Contains PS1 low-poly horror visual triggers, eerie atmosphere & jump scares.</span>
+            </div>
+        </main>
+
+        <!-- About Section -->
+        <section id="about" class="max-w-4xl w-full mx-auto my-12 pt-8 border-t-2 border-stone-800">
+            <h2 class="text-3xl md:text-4xl text-red-600 font-title mb-6 tracking-wide uppercase flex items-center gap-3">
+                <span class="inline-block w-4 h-4 bg-red-700"></span>
+                About The Nightmare
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-8 text-lg text-stone-300 font-subtitle">
+                <div class="bg-stone-950/80 border border-emerald-950 p-6 rounded-none relative">
+                    <div class="absolute top-0 right-0 bg-emerald-900 text-stone-200 text-xs px-2 py-0.5 font-bold">CASE #002</div>
+                    <h3 class="text-amber-200 text-xl font-bold mb-3 border-b border-stone-800 pb-2">THE STORY</h3>
+                    <p class="leading-relaxed text-stone-400">
+                        You find yourself trapped in a dimly lit, distorted kitchen space. The air smells of rusty iron and sour milk. A mysterious girl in a school uniform sits across the dining table—staring with a unnatural, eerie grin.
+                    </p>
+                    <p class="mt-3 leading-relaxed text-stone-400">
+                        Every answer you give alters your fate. Choose carefully, or you will never escape the loop.
+                    </p>
+                </div>
+
+                <div class="bg-stone-950/80 border border-emerald-950 p-6 rounded-none relative">
+                    <div class="absolute top-0 right-0 bg-red-900 text-stone-200 text-xs px-2 py-0.5 font-bold">FEAT. RETRO 3D</div>
+                    <h3 class="text-amber-200 text-xl font-bold mb-3 border-b border-stone-800 pb-2">GAME FEATURES</h3>
+                    <ul class="space-y-2 text-stone-400 list-disc list-inside">
+                        <li>Authentic 90s PS1 Low-Poly Visual Aesthetics.</li>
+                        <li>Branching Interactive Video & Narrative Choices.</li>
+                        <li>Dynamic Ambient CRT Glitch Effects.</li>
+                        <li>Multiple Endings: Survival, Insanity, or Redemption.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="max-w-6xl w-full mx-auto py-6 border-t border-stone-900 flex flex-col md:flex-row justify-between items-center text-sm text-stone-600 font-subtitle gap-4">
+            <div>
+                © 1998-2026 JOPAY HORROR PROJECT. ALL RIGHTS RESERVED.
+            </div>
+            <div class="flex gap-4">
+                <span class="hover:text-stone-400 cursor-pointer" onclick="alert('SYSTEM STATUS: ALL SCENES ONLINE')">SYSTEM DIAGNOSTICS</span>
+                <span>•</span>
+                <span class="hover:text-stone-400 cursor-pointer" onclick="alert('JOPAY IS WATCHING YOU.')">VERSION 1.0.4</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('horrorCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const particles = Array.from({ length: 60 }, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 3 + 1,
+            speedY: (Math.random() - 0.5) * 0.8,
+            speedX: (Math.random() - 0.5) * 0.8,
+            color: Math.random() > 0.5 ? 'rgba(139, 0, 0, ' : 'rgba(44, 74, 56, ',
+            alpha: Math.random() * 0.5 + 0.1
+        }));
+
+        function drawHorrorBg() {
+            ctx.fillStyle = 'rgba(7, 9, 8, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(p => {
+                p.x += p.speedX;
+                p.y += p.speedY;
+
+                if (p.x < 0) p.x = canvas.width;
+                if (p.x > canvas.width) p.x = 0;
+                if (p.y < 0) p.y = canvas.height;
+                if (p.y > canvas.height) p.y = 0;
+
+                ctx.fillStyle = p.color + p.alpha + ')';
+                ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.size, p.size);
+            });
+
+            if (Math.random() > 0.94) {
+                const glitchY = Math.random() * canvas.height;
+                const glitchHeight = Math.random() * 10 + 2;
+                ctx.fillStyle = 'rgba(139, 0, 0, 0.15)';
+                ctx.fillRect(0, glitchY, canvas.width, glitchHeight);
+            }
+
+            requestAnimationFrame(drawHorrorBg);
+        }
+        drawHorrorBg();
+        let audioCtx = null;
+        let isAudioPlaying = false;
+        let osc1, osc2, gainNode;
+
+        function initHorrorAudio() {
+            if (audioCtx) return;
+
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            osc1 = audioCtx.createOscillator();
+            osc2 = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+
+            osc1.type = 'sawtooth';
+            osc1.frequency.setValueAtTime(55, audioCtx.currentTime); 
+
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(58.73, audioCtx.currentTime);
+
+            gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+
+            osc1.connect(gainNode);
+            osc2.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc1.start();
+            osc2.start();
+        }
+
+        const audioBtn = document.getElementById('audioToggleBtn');
+        const audioStatus = document.getElementById('audioStatus');
+
+        audioBtn.addEventListener('click', () => {
+            if (!audioCtx) {
+                initHorrorAudio();
+                isAudioPlaying = true;
+                audioStatus.textContent = 'ON';
+                audioStatus.className = 'text-emerald-400';
+            } else if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+                isAudioPlaying = true;
+                audioStatus.textContent = 'ON';
+                audioStatus.className = 'text-emerald-400';
+            } else if (audioCtx.state === 'running') {
+                audioCtx.suspend();
+                isAudioPlaying = false;
+                audioStatus.textContent = 'OFF';
+                audioStatus.className = 'text-red-500';
+            }
+        });
+
+        const crtBtn = document.getElementById('crtToggleBtn');
+        const crtOverlay = document.getElementById('crtOverlay');
+        const crtStatus = document.getElementById('crtStatus');
+        let crtEnabled = true;
+
+        crtBtn.addEventListener('click', () => {
+            crtEnabled = !crtEnabled;
+            crtOverlay.style.display = crtEnabled ? 'block' : 'none';
+            crtStatus.textContent = crtEnabled ? 'ON' : 'OFF';
+            crtStatus.className = crtEnabled ? 'text-emerald-400' : 'text-red-500';
+        });
+
+        const playGameBtn = document.getElementById('playGameBtn');
+        playGameBtn.addEventListener('click', () => {
+            if (audioCtx && audioCtx.state === 'running') {
+                const jumpOsc = audioCtx.createOscillator();
+                const jumpGain = audioCtx.createGain();
+                jumpOsc.type = 'square';
+                jumpOsc.frequency.setValueAtTime(120, audioCtx.currentTime);
+                jumpOsc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.4);
+                jumpGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                jumpGain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                jumpOsc.connect(jumpGain);
+                jumpGain.connect(audioCtx.destination);
+                jumpOsc.start();
+                jumpOsc.stop(audioCtx.currentTime + 0.4);
+            }
+
+            setTimeout(() => {
+                window.location.href = 'index.html'; 
+            }, 300);
+        });
+    </script>
+</body>
+</html>

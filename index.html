@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>JOPAY:THE GAME</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 10;
+    }
+
+    #choices-overlay {
+      display: none;
+    }
+
+    .btn {
+      padding: 16px 32px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.85);
+      border: 2px solid #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-width: 250px;
+      text-align: center;
+    }
+
+    .btn:hover {
+      background: #ffffff;
+      color: #000000;
+      transform: scale(1.08);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+    }
+
+    #error-box {
+      display: none;
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(220, 38, 38, 0.9);
+      color: white;
+      padding: 15px 25px;
+      border-radius: 8px;
+      font-size: 16px;
+      z-index: 100;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <div id="error-box"></div>
+
+    <div id="start-overlay" class="overlay">
+      <button class="btn" onclick="startGame()">Click to Start Game</button>
+    </div>
+
+    <video id="game-video" playsinline preload="auto">
+      <source id="video-source" src="INTROJO-1.mp4" type="video/mp4">
+    </video>
+
+    <div id="choices-overlay" class="overlay"></div>
+  </div>
+
+  <script>
+    const storyTree = {
+      "intro": {
+        video: "INTROJO-1.mp4",
+        choices: [
+          { text: "Baket?", nextScene: "accept" },
+          { text: "taena mo penge bente", nextScene: "decline" }
+        ]
+      },
+      "accept": {
+        video: "JO1-1.mp4",
+        choices: [
+          { text: "Umalis", nextScene: "Umalis" },
+          { text: "Manatili", nextScene: "Manatili" }
+        ]
+      },
+      "decline": {
+        video: "outro-1.mp4",
+        choices: [
+          { text: "Try Again?", nextScene: "intro" },
+          { text: "Home", nextScene: "home" }
+        ]
+      },
+      "Umalis": {
+        video: "Jo2-1.mp4",
+        choices: [
+          { text: "Bakit?", nextScene: "Jo1" },
+          { text: "Ayos naman dito ah", nextScene: "decline" }
+        ]
+      },
+      "Jo1": {
+        video: "outro-1.mp4",
+        choices: [
+          { text: "Try Again?", nextScene: "intro" },
+          { text: "Home", nextScene: "home" }
+        ]
+      },
+      "home": {
+        url: "Home.html"
+      }
+    };
+
+    let currentSceneKey = "intro";
+    const video = document.getElementById('game-video');
+    const source = document.getElementById('video-source');
+    const startOverlay = document.getElementById('start-overlay');
+    const choicesOverlay = document.getElementById('choices-overlay');
+    const errorBox = document.getElementById('error-box');
+
+    video.onerror = function() {
+      const scene = storyTree[currentSceneKey];
+      if (scene && scene.video) {
+        errorBox.style.display = 'block';
+        errorBox.innerHTML = `<strong>File Not Found Error:</strong> Could not play "<code>${scene.video}</code>".<br>Make sure "<code>${scene.video}</code>" is saved inside the exact same folder as <code>index.html</code>.`;
+      }
+    };
+
+    function playScene(sceneKey) {
+      errorBox.style.display = 'none';
+      choicesOverlay.style.display = 'none';
+      currentSceneKey = sceneKey;
+
+      const scene = storyTree[sceneKey];
+      if (!scene) return;
+
+      if (scene.url) {
+        window.location.href = scene.url;
+        return;
+      }
+
+      source.src = scene.video;
+      video.load();
+      video.play().catch(err => {
+        errorBox.style.display = 'block';
+        errorBox.innerText = "Playback error: " + err.message;
+      });
+    }
+
+    function startGame() {
+      startOverlay.style.display = 'none';
+      playScene("intro");
+    }
+
+    video.onended = function() {
+      const scene = storyTree[currentSceneKey];
+      choicesOverlay.innerHTML = "";
+
+      if (scene && scene.choices && scene.choices.length > 0) {
+        scene.choices.forEach(choice => {
+          const btn = document.createElement('button');
+          btn.className = 'btn';
+          btn.innerText = choice.text;
+          btn.onclick = function() {
+            playScene(choice.nextScene);
+          };
+          choicesOverlay.appendChild(btn);
+        });
+        choicesOverlay.style.display = 'flex';
+      }
+    };
+  </script>
+
+</body>
+</html>
